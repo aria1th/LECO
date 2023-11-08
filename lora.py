@@ -59,13 +59,13 @@ class LoRAModule(nn.Module):
         self.lora_name = lora_name
         self.lora_dim = lora_dim
 
-        if org_module.__class__.__name__ == "Linear":
+        if org_module.__class__.__name__ == "Linear" or "Linear" in org_module.__class__.__name__:
             in_dim = org_module.in_features
             out_dim = org_module.out_features
             self.lora_down = nn.Linear(in_dim, lora_dim, bias=False)
             self.lora_up = nn.Linear(lora_dim, out_dim, bias=False)
 
-        elif org_module.__class__.__name__ == "Conv2d":  # 一応
+        elif org_module.__class__.__name__ == "Conv2d" or "Conv" in org_module.__class__.__name__:
             in_dim = org_module.in_channels
             out_dim = org_module.out_channels
 
@@ -80,6 +80,10 @@ class LoRAModule(nn.Module):
                 in_dim, self.lora_dim, kernel_size, stride, padding, bias=False
             )
             self.lora_up = nn.Conv2d(self.lora_dim, out_dim, (1, 1), (1, 1), bias=False)
+        else:
+            raise NotImplementedError(
+                f"LoRAModule only supports Linear and Conv2d, but got {org_module.__class__.__name__}"
+            )
 
         if type(alpha) == torch.Tensor:
             alpha = alpha.detach().numpy()
@@ -99,9 +103,9 @@ class LoRAModule(nn.Module):
         self.org_module.forward = self.forward
         del self.org_module
 
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         return (
-            self.org_forward(x)
+            self.org_forward(x, *args, **kwargs)
             + self.lora_up(self.lora_down(x)) * self.multiplier * self.scale
         )
 
@@ -133,6 +137,7 @@ class LoRANetwork(nn.Module):
             self.multiplier,
             train_method=train_method,
         )
+        assert len(self.unet_loras) > 0, "no lora modules created."
         print(f"create LoRA for U-Net: {len(self.unet_loras)} modules.")
 
         # assertion 名前の被りがないか確認しているようだ
@@ -185,12 +190,14 @@ class LoRANetwork(nn.Module):
                 raise NotImplementedError(
                     f"train_method: {train_method} is not implemented."
                 )
-            if module.__class__.__name__ in target_replace_modules:
+            #print(f"create LoRA for {module.__class__.__name__}: {name}")
+            if module.__class__.__name__ in target_replace_modules or 'LoRACompatible' in module.__class__.__name__:
                 for child_name, child_module in module.named_modules():
-                    if child_module.__class__.__name__ in ["Linear", "Conv2d"]:
+                    #print(f"create LoRA for {child_module.__class__.__name__}: {name}.{child_name}")
+                    if child_module.__class__.__name__ in ["Linear", "Conv2d"] or 'LoRACompatible' in child_module.__class__.__name__:
                         lora_name = prefix + "." + name + "." + child_name
                         lora_name = lora_name.replace(".", "_")
-                        print(f"{lora_name}")
+                        #print(f"{lora_name}")
                         lora = self.module(
                             lora_name, child_module, multiplier, rank, self.alpha
                         )
