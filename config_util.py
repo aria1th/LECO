@@ -30,7 +30,7 @@ class NetworkConfig(BaseModel):
 class TrainConfig(BaseModel):
     precision: PRECISION_TYPES = "bfloat16"
     noise_scheduler: Literal["ddim", "ddpm", "lms", "euler_a"] = "ddim"
-
+    seed : int = -1 # -1 means random seed
     iterations: int = 500
     lr: float = 1e-4
     optimizer: str = "adamw"

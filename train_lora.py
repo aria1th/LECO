@@ -54,6 +54,12 @@ def train(
 
     weight_dtype = config_util.parse_precision(config.train.precision)
     save_weight_dtype = config_util.parse_precision(config.train.precision)
+    
+    seed = config.train.seed
+    if seed is not None:
+        # seed everything
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
 
     tokenizer, text_encoder, unet, noise_scheduler = model_util.load_models(
         config.pretrained_model.name_or_path,
