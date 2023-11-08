@@ -51,6 +51,8 @@ class LoggingConfig(BaseModel):
     use_wandb: bool = False
 
     verbose: bool = False
+    
+    wandb_api_key: Optional[str] = None
 
 
 class OtherConfig(BaseModel):

@@ -49,6 +49,7 @@ def train(
         print(metadata)
 
     if config.logging.use_wandb:
+        wandb.login(config.logging.wandb_api_key)
         wandb.init(project=f"LECO_{config.save.name}", config=metadata)
 
     weight_dtype = config_util.parse_precision(config.train.precision)
