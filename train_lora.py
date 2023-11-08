@@ -49,7 +49,7 @@ def train(
         print(metadata)
 
     if config.logging.use_wandb:
-        wandb.login(config.logging.wandb_api_key)
+        wandb.login(key = config.logging.wandb_api_key)
         wandb.init(project=f"LECO_{config.save.name}", config=metadata)
 
     weight_dtype = config_util.parse_precision(config.train.precision)
@@ -77,6 +77,8 @@ def train(
         alpha=config.network.alpha,
         train_method=config.network.training_method,
     ).to(DEVICE_CUDA, dtype=weight_dtype)
+    
+    network.train()
 
     optimizer_module = train_util.get_optimizer(config.train.optimizer)
     #optimizer_args
@@ -269,9 +271,13 @@ def train(
             neutral_latents=neutral_latents,
             unconditional_latents=unconditional_latents,
         )
+        # if loss is absolute 0, raise error
+        if torch.isnan(loss) or loss == 0:
+            raise ValueError("Loss is NaN.")
 
         # 1000倍しないとずっと0.000...になってしまって見た目的に面白くない
-        pbar.set_description(f"Loss*1k: {loss.item()*1000:.4f}")
+        # show as 1.2345e-3...
+        pbar.set_description(f"Loss * 1k: {loss.item() * 1000:.4e}")
         if config.logging.use_wandb:
             wandb.log(
                 {"loss": loss, "iteration": i, "lr": lr_scheduler.get_last_lr()[0]}
